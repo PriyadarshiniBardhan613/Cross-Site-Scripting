@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { loadModel, predict, extractFeatures, trainModel } = require('./ml_model');
 
 const DB_PATH = path.join(__dirname, 'xss_detection.db');
 
@@ -177,59 +178,116 @@ function getPatternFrequency(db) {
     });
 }
 
-// Get confusion matrix data (TP, TN, FP, FN)
+// Get confusion matrix data (TP, TN, FP, FN) using Random Forest model
 function getConfusionMatrix(db) {
-    return new Promise((resolve, reject) => {
-        db.all(`
-            SELECT 
-                -- True Positives: Detected as malicious AND ground truth is malicious
-                SUM(CASE WHEN is_malicious = 1 AND ground_truth = 'malicious' THEN 1 ELSE 0 END) as true_positives,
-                -- True Negatives: Detected as clean AND ground truth is clean
-                SUM(CASE WHEN is_malicious = 0 AND ground_truth = 'clean' THEN 1 ELSE 0 END) as true_negatives,
-                -- False Positives: Detected as malicious BUT ground truth is clean
-                SUM(CASE WHEN is_malicious = 1 AND ground_truth = 'clean' THEN 1 ELSE 0 END) as false_positives,
-                -- False Negatives: Detected as clean BUT ground truth is malicious
-                SUM(CASE WHEN is_malicious = 0 AND ground_truth = 'malicious' THEN 1 ELSE 0 END) as false_negatives,
-                -- Total with ground truth labels
-                SUM(CASE WHEN ground_truth IS NOT NULL THEN 1 ELSE 0 END) as total_labeled
-            FROM detection_results
-        `, (err, rows) => {
-            if (err) {
-                reject(err);
-            } else {
-                const result = rows[0] || {
+    return new Promise(async (resolve, reject) => {
+        try {
+            // Get all labeled results
+            const labeledResults = await getLabeledResults(db);
+            
+            if (labeledResults.length === 0) {
+                return resolve({
                     true_positives: 0,
                     true_negatives: 0,
                     false_positives: 0,
                     false_negatives: 0,
-                    total_labeled: 0
-                };
-                
-                // Calculate metrics
-                const tp = result.true_positives || 0;
-                const tn = result.true_negatives || 0;
-                const fp = result.false_positives || 0;
-                const fn = result.false_negatives || 0;
-                const total = tp + tn + fp + fn;
-                
-                const precision = (tp + fp) > 0 ? (tp / (tp + fp)) : 0;
-                const recall = (tp + fn) > 0 ? (tp / (tp + fn)) : 0;
-                const f1Score = (precision + recall) > 0 ? (2 * precision * recall / (precision + recall)) : 0;
-                const accuracy = total > 0 ? ((tp + tn) / total) : 0;
-                
-                resolve({
-                    true_positives: tp,
-                    true_negatives: tn,
-                    false_positives: fp,
-                    false_negatives: fn,
-                    total_labeled: result.total_labeled || 0,
-                    precision: precision,
-                    recall: recall,
-                    f1_score: f1Score,
-                    accuracy: accuracy
+                    total_labeled: 0,
+                    precision: 0,
+                    recall: 0,
+                    f1_score: 0,
+                    accuracy: 0,
+                    model_used: false
                 });
             }
-        });
+            
+            // Load the trained Random Forest model
+            const model = loadModel();
+            
+            if (!model) {
+                // Fallback to database values if model not available
+                db.all(`
+                    SELECT 
+                        SUM(CASE WHEN is_malicious = 1 AND ground_truth = 'malicious' THEN 1 ELSE 0 END) as true_positives,
+                        SUM(CASE WHEN is_malicious = 0 AND ground_truth = 'clean' THEN 1 ELSE 0 END) as true_negatives,
+                        SUM(CASE WHEN is_malicious = 1 AND ground_truth = 'clean' THEN 1 ELSE 0 END) as false_positives,
+                        SUM(CASE WHEN is_malicious = 0 AND ground_truth = 'malicious' THEN 1 ELSE 0 END) as false_negatives,
+                        SUM(CASE WHEN ground_truth IS NOT NULL THEN 1 ELSE 0 END) as total_labeled
+                    FROM detection_results
+                `, (err, rows) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        const result = rows[0] || {
+                            true_positives: 0,
+                            true_negatives: 0,
+                            false_positives: 0,
+                            false_negatives: 0,
+                            total_labeled: 0
+                        };
+                        
+                        const tp = result.true_positives || 0;
+                        const tn = result.true_negatives || 0;
+                        const fp = result.false_positives || 0;
+                        const fn = result.false_negatives || 0;
+                        const total = tp + tn + fp + fn;
+                        
+                        const precision = (tp + fp) > 0 ? (tp / (tp + fp)) : 0;
+                        const recall = (tp + fn) > 0 ? (tp / (tp + fn)) : 0;
+                        const f1Score = (precision + recall) > 0 ? (2 * precision * recall / (precision + recall)) : 0;
+                        const accuracy = total > 0 ? ((tp + tn) / total) : 0;
+                        
+                        resolve({
+                            true_positives: tp,
+                            true_negatives: tn,
+                            false_positives: fp,
+                            false_negatives: fn,
+                            total_labeled: result.total_labeled || 0,
+                            precision: precision,
+                            recall: recall,
+                            f1_score: f1Score,
+                            accuracy: accuracy,
+                            model_used: false
+                        });
+                    }
+                });
+                return;
+            }
+            
+            // Use Random Forest model to make predictions
+            let tp = 0, tn = 0, fp = 0, fn = 0;
+            
+            for (const result of labeledResults) {
+                const mlPrediction = predict(model, result.raw_input);
+                const predicted = mlPrediction ? mlPrediction.isMalicious : false;
+                const actual = result.ground_truth === 'malicious';
+                
+                if (predicted && actual) tp++;
+                else if (!predicted && !actual) tn++;
+                else if (predicted && !actual) fp++;
+                else if (!predicted && actual) fn++;
+            }
+            
+            const total = tp + tn + fp + fn;
+            const precision = (tp + fp) > 0 ? (tp / (tp + fp)) : 0;
+            const recall = (tp + fn) > 0 ? (tp / (tp + fn)) : 0;
+            const f1Score = (precision + recall) > 0 ? (2 * precision * recall / (precision + recall)) : 0;
+            const accuracy = total > 0 ? ((tp + tn) / total) : 0;
+            
+            resolve({
+                true_positives: tp,
+                true_negatives: tn,
+                false_positives: fp,
+                false_negatives: fn,
+                total_labeled: labeledResults.length,
+                precision: precision,
+                recall: recall,
+                f1_score: f1Score,
+                accuracy: accuracy,
+                model_used: true
+            });
+        } catch (err) {
+            reject(err);
+        }
     });
 }
 
@@ -250,7 +308,7 @@ function getLabeledResults(db) {
     });
 }
 
-// Perform k-fold cross-validation
+// Perform k-fold cross-validation using Random Forest model
 function performKFoldCrossValidation(db, k = 4) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -279,18 +337,42 @@ function performKFoldCrossValidation(db, k = 4) {
                 const testSet = folds[foldIndex];
                 const trainSet = folds.filter((_, idx) => idx !== foldIndex).flat();
                 
-                // Calculate confusion matrix for this fold
+                // Prepare training data for Random Forest
+                const trainingData = [];
+                const trainingLabels = [];
+                
+                for (const result of trainSet) {
+                    const features = extractFeatures(result.raw_input);
+                    trainingData.push(features);
+                    trainingLabels.push(result.ground_truth === 'malicious' ? 1 : 0);
+                }
+                
+                // Train Random Forest model on training fold
+                let foldModel;
+                try {
+                    if (trainingData.length < 2) {
+                        throw new Error(`Not enough training samples in fold ${foldIndex + 1}`);
+                    }
+                    foldModel = trainModel(trainingData, trainingLabels);
+                } catch (trainErr) {
+                    console.warn(`Error training model for fold ${foldIndex + 1}:`, trainErr.message);
+                    // Skip this fold if training fails
+                    continue;
+                }
+                
+                // Test the model on test fold
                 let tp = 0, tn = 0, fp = 0, fn = 0;
                 
-                testSet.forEach(result => {
-                    const predicted = result.is_malicious === 1;
+                for (const result of testSet) {
+                    const mlPrediction = predict(foldModel, result.raw_input);
+                    const predicted = mlPrediction ? mlPrediction.isMalicious : false;
                     const actual = result.ground_truth === 'malicious';
                     
                     if (predicted && actual) tp++;
                     else if (!predicted && !actual) tn++;
                     else if (predicted && !actual) fp++;
                     else if (!predicted && actual) fn++;
-                });
+                }
                 
                 const total = tp + tn + fp + fn;
                 const accuracy = total > 0 ? (tp + tn) / total : 0;
@@ -310,6 +392,12 @@ function performKFoldCrossValidation(db, k = 4) {
                     precision: precision,
                     recall: recall,
                     f1_score: f1Score
+                });
+            }
+            
+            if (foldResults.length === 0) {
+                return resolve({
+                    error: 'Failed to train models for any fold. Check training data.'
                 });
             }
             
@@ -335,18 +423,18 @@ function performKFoldCrossValidation(db, k = 4) {
             
             // Calculate average metrics across all folds
             const avgMetrics = {
-                accuracy: foldResults.reduce((sum, f) => sum + f.accuracy, 0) / k,
-                precision: foldResults.reduce((sum, f) => sum + f.precision, 0) / k,
-                recall: foldResults.reduce((sum, f) => sum + f.recall, 0) / k,
-                f1_score: foldResults.reduce((sum, f) => sum + f.f1_score, 0) / k
+                accuracy: foldResults.reduce((sum, f) => sum + f.accuracy, 0) / foldResults.length,
+                precision: foldResults.reduce((sum, f) => sum + f.precision, 0) / foldResults.length,
+                recall: foldResults.reduce((sum, f) => sum + f.recall, 0) / foldResults.length,
+                f1_score: foldResults.reduce((sum, f) => sum + f.f1_score, 0) / foldResults.length
             };
             
             // Calculate standard deviation
             const stdDev = {
-                accuracy: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.accuracy - avgMetrics.accuracy, 2), 0) / k),
-                precision: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.precision - avgMetrics.precision, 2), 0) / k),
-                recall: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.recall - avgMetrics.recall, 2), 0) / k),
-                f1_score: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.f1_score - avgMetrics.f1_score, 2), 0) / k)
+                accuracy: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.accuracy - avgMetrics.accuracy, 2), 0) / foldResults.length),
+                precision: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.precision - avgMetrics.precision, 2), 0) / foldResults.length),
+                recall: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.recall - avgMetrics.recall, 2), 0) / foldResults.length),
+                f1_score: Math.sqrt(foldResults.reduce((sum, f) => sum + Math.pow(f.f1_score - avgMetrics.f1_score, 2), 0) / foldResults.length)
             };
             
             resolve({
@@ -364,7 +452,8 @@ function performKFoldCrossValidation(db, k = 4) {
                     f1_score: aggregatedF1
                 },
                 averageMetrics: avgMetrics,
-                standardDeviation: stdDev
+                standardDeviation: stdDev,
+                model_used: 'Random Forest'
             });
         } catch (err) {
             reject(err);
@@ -381,6 +470,7 @@ module.exports = {
     getPatternFrequency,
     getConfusionMatrix,
     performKFoldCrossValidation,
+    getLabeledResults,
     DB_PATH
 };
 

@@ -217,19 +217,19 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 XSS Detection Performance Metrics</h1>
+            <h1>XSS Detection Performance Metrics</h1>
             <p>Comprehensive statistics and analysis of the XSS detection system</p>
         </div>
 
         <div class="content">
             <div class="nav-buttons">
-                <a href="/scanner" class="nav-btn">🔍 New Scan</a>
-                <a href="/test" class="nav-btn">🧪 Test Mode</a>
+                <a href="/scanner" class="nav-btn">New Scan</a>
+                <a href="/test" class="nav-btn">Test Mode</a>
             </div>
 
             <!-- Overall Statistics -->
             <div class="section">
-                <h2>📈 Overall Statistics</h2>
+                <h2>Overall Statistics</h2>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3>Total Scans</h3>
@@ -259,7 +259,7 @@
                                 const detected = statistics.attacks_detected || 0;
                                 const rate = total > 0 ? ((detected / total) * 100).toFixed(1) : '0.0';
                             %>
-                            <%= rate %>%
+                            <%= rate + '%' %>
                         </div>
                     </div>
                 </div>
@@ -294,19 +294,19 @@
                             <tr>
                                 <th>Actual: Attack</th>
                                 <td style="background: #d4edda; font-weight: bold;">
-                                    <%= kFoldTPPercent %>% (True Positive)
+                                    <%= kFoldTPPercent + '%' %>
                                 </td>
                                 <td style="background: #f8d7da; font-weight: bold;">
-                                    <%= kFoldFNPercent %>% (False Negative)
+                                    <%= kFoldFNPercent + '%' %>
                                 </td>
                             </tr>
                             <tr>
                                 <th>Actual: Clean</th>
                                 <td style="background: #f8d7da; font-weight: bold;">
-                                    <%= kFoldFPPercent %>% (False Positive)
+                                    <%= kFoldFPPercent + '%' %>
                                 </td>
                                 <td style="background: #d4edda; font-weight: bold;">
-                                    <%= kFoldTNPercent %>% (True Negative)
+                                    <%= kFoldTNPercent + '%' %>
                                 </td>
                             </tr>
                         </tbody>
@@ -315,24 +315,24 @@
                     <div class="stats-grid" style="margin-top: 20px;">
                         <div class="stat-card success">
                             <h3>Accuracy</h3>
-                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.accuracy * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.accuracy * 100).toFixed(1) + '%' %></div>
                         </div>
                         <div class="stat-card">
                             <h3>Precision</h3>
-                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.precision * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.precision * 100).toFixed(1) + '%' %></div>
                         </div>
                         <div class="stat-card">
                             <h3>Recall</h3>
-                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.recall * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.recall * 100).toFixed(1) + '%' %></div>
                         </div>
                         <div class="stat-card warning">
                             <h3>F1 Score</h3>
-                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.f1_score * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (kFoldResults.aggregatedConfusionMatrix.f1_score * 100).toFixed(1) + '%' %></div>
                         </div>
                     </div>
                     
                     <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
-                        Aggregated from <%= kFoldResults.k %>-fold cross-validation across <%= kFoldResults.totalSamples %> labeled samples.
+                        Aggregated from k-fold cross-validation.
                     </p>
                     
                     <hr style="margin: 30px 0; border: none; border-top: 2px solid #e0e0e0;">
@@ -361,19 +361,19 @@
                             <tr>
                                 <th>Actual: Attack</th>
                                 <td style="background: #d4edda; font-weight: bold;">
-                                    <%= tpPercent %>% (True Positive)
+                                    <%= tpPercent + '%' %>
                                 </td>
                                 <td style="background: #f8d7da; font-weight: bold;">
-                                    <%= fnPercent %>% (False Negative)
+                                    <%= fnPercent + '%' %>
                                 </td>
                             </tr>
                             <tr>
                                 <th>Actual: Clean</th>
                                 <td style="background: #f8d7da; font-weight: bold;">
-                                    <%= fpPercent %>% (False Positive)
+                                    <%= fpPercent + '%' %>
                                 </td>
                                 <td style="background: #d4edda; font-weight: bold;">
-                                    <%= tnPercent %>% (True Negative)
+                                    <%= tnPercent + '%' %>
                                 </td>
                             </tr>
                         </tbody>
@@ -382,24 +382,24 @@
                     <div class="stats-grid" style="margin-top: 20px;">
                         <div class="stat-card success">
                             <h3>Accuracy</h3>
-                            <div class="stat-value"><%= (confusion.accuracy * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (confusion.accuracy * 100).toFixed(1) + '%' %></div>
                         </div>
                         <div class="stat-card">
                             <h3>Precision</h3>
-                            <div class="stat-value"><%= (confusion.precision * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (confusion.precision * 100).toFixed(1) + '%' %></div>
                         </div>
                         <div class="stat-card">
                             <h3>Recall</h3>
-                            <div class="stat-value"><%= (confusion.recall * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (confusion.recall * 100).toFixed(1) + '%' %></div>
                         </div>
                         <div class="stat-card warning">
                             <h3>F1 Score</h3>
-                            <div class="stat-value"><%= (confusion.f1_score * 100).toFixed(1) %>%</div>
+                            <div class="stat-value"><%= (confusion.f1_score * 100).toFixed(1) + '%' %></div>
                         </div>
                     </div>
                     
                     <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
-                        Based on <%= confusion.total_labeled %> labeled samples. Select "Ground Truth" when scanning to improve accuracy metrics.
+                        Based on labeled samples. Select "Ground Truth" when scanning to improve accuracy metrics.
                     </p>
                 <% } else { %>
                     <p style="text-align: center; color: #666; padding: 20px;">
@@ -410,11 +410,10 @@
 
             <!-- K-Fold Cross-Validation -->
             <div class="section">
-                <h2>🔄 K-Fold Cross-Validation (25% Test Split)</h2>
+                <h2>K-Fold Cross-Validation (25% Test Split)</h2>
                 <% if (kFoldResults && !kFoldResults.error) { %>
                     <div style="margin-bottom: 20px;">
-                        <p><strong>K-Fold Configuration:</strong> <%= kFoldResults.k %> folds, <%= kFoldResults.totalSamples %> total labeled samples</p>
-                        <p style="color: #666; font-size: 0.9em;">Each fold uses 25% of data for testing and 75% for training.</p>
+                        <p style="color: #666; font-size: 0.9em;">Each fold trains on 75% of data and tests on 25%.</p>
                     </div>
                     
                     <!-- Fold Results Table -->
@@ -422,12 +421,12 @@
                         <thead>
                             <tr>
                                 <th>Fold</th>
-                                <th>Test Size</th>
-                                <th>Train Size</th>
-                                <th>TP</th>
-                                <th>TN</th>
-                                <th>FP</th>
-                                <th>FN</th>
+                                <th>Test %</th>
+                                <th>Train %</th>
+                                <th>TP %</th>
+                                <th>TN %</th>
+                                <th>FP %</th>
+                                <th>FN %</th>
                                 <th>Accuracy</th>
                                 <th>Precision</th>
                                 <th>Recall</th>
@@ -502,7 +501,7 @@
 
             <!-- Pattern Frequency -->
             <div class="section">
-                <h2>🎯 Attack Pattern Frequency</h2>
+                <h2>Attack Pattern Frequency</h2>
                 <div class="pattern-grid" id="pattern-grid">
                     <% 
                         const patternNames = {
